@@ -1,0 +1,172 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(dplyr)
+library(tidymodels)
+library(tidyverse)
+```
+```{r}
+
+```
+
+
+
+
+```{r}
+library(nycflights13)
+library(skimr)
+set.seed(123)
+
+
+flight_data = flights%>%
+  mutate(arr_delay = ifelse(arr_delay>=30, "late","on_time"),
+         arr_delay = factor(arr_delay),
+         date = lubridate::as_date(time_hour))%>%
+  inner_join(weather, by = c("origin","time_hour"))%>%
+  select(dep_time, flight, origin, dest, air_time, distance,
+         carrier, date, arr_delay, time_hour) %>%
+  na.omit()%>%
+  mutate_if(is.character, as.factor)
+
+
+
+
+```
+
+```{r}
+flight_data %>%
+  count(arr_delay) %>%
+  mutate(prop = n/sum(n))
+
+```
+
+
+```{r}
+glimpse(flight_data)
+```
+
+
+```{r}
+flight_data %>%
+  skimr::skim(dest, carrier)
+```
+
+
+```{r}
+set.seed(222)
+
+data_split <- initial_split(flight_data, prop = 3/4)
+train_data <- training(data_split)
+test_data <- testing(data_split)
+```
+
+
+```{r}
+flights_rec <-
+  recipe(arr_delay~., data = train_data)
+```
+
+
+```{r}
+flights_rec <-
+  recipe(arr_delay ~., data = train_data) %>%
+  update_role(flight, time_hour, new_role = "ID")
+```
+
+```{r}
+summary(flights_rec)
+```
+
+```{r}
+flight_data %>%
+  distinct(date) %>%
+  mutate(numeric_date = as.numeric(date))
+```
+
+```{r}
+flights_rec <-
+  recipe(arr_delay ~., data = train_data) %>%
+  update_role(flight, time_hour, new_role = "ID") %>%
+  step_date(date, features = c("dow","month")) %>%
+  step_holiday(date,
+               holidays = timeDate::listHolidays("US"),
+               keep_original_cols = FALSE)
+
+
+
+```
+
+
+```{r}
+flights_ec <-
+  recipe(arr_delay~., data = train_data) %>%
+  update_role(flight, time_hour, new_role = "ID") %>%
+  step_date(date, features = c("dow","month")) %>%
+  step_holiday(date,
+               holidays = timeDate::listHolidays("US"),
+               keep_original_cols = FALSE) %>%
+  step_dummy(all_nominal_predictors())
+```
+
+```{r}
+test_data %>%
+  distinct(dest) %>%
+  anti_join(train_data)
+```
+
+```{r}
+flights_rec <- 
+  recipe(arr_delay ~ ., data = train_data) %>% 
+  update_role(flight, time_hour, new_role = "ID") %>% 
+  step_date(date, features = c("dow", "month")) %>%               
+  step_holiday(date, 
+               holidays = timeDate::listHolidays("US"), 
+               keep_original_cols = FALSE) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors())
+```
+
+
+```{r}
+lr_mod <-
+  logistic_reg() %>%
+  set_engine("glm")
+```
+
+
+```{r}
+flights_wflow <- 
+  workflow() %>% 
+  add_model(lr_mod) %>% 
+  add_recipe(flights_rec)
+
+flights_wflow
+```
+
+```{r}
+flights_fit <-
+  flights_wflow %>%
+  fit(data = train_data)
+
+flights_fit 
+
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+
+
+
+
+
+
