@@ -1,0 +1,53 @@
+---
+title: "Kaggle competition"
+output: html_notebook
+---
+
+```{r}
+df = read.csv("train_reg.csv")
+```
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+data_reg = read.csv("train_reg.csv")
+data_reg
+```
+
+```{r}
+library(dplyr)
+summary(data_reg)
+rec_initial = recipe(SalePrice~., data = data_reg) %>% step_mutate_at(all_nominal_predictors(), fn = function(x){if_else(is.na(x),"NotApplicable",as.character(x))}) %>% step_log(SalePrice)%>%step_impute_mean(all_numeric_predictors())%>% step_rm(Id)
+
+data_reg2 = rec_initial %>% prep() %>% bake(new_data = NULL)
+
+```
+
+#Fit random forest method using cross-validation
+```{r}
+set.seed(23345566)
+cv1 = vfold_cv(data_reg2,v=5)
+wf1 = workflow() %>% add_recipe(recipe(SalePrice~., data = data_reg2)) %>% add_model(rand_forest(mode = "regression"))
+res1 = wf1 %>% fit_resamples(cv1) %>% collect_metrics()
+```
+
+#Lasso method
+```{r}
+
+
+wf2 = workflow() %>% add_recipe(recipe(SalePrice~., data = data_reg2) %>% step_dummy(all_nominal_predictors(), one_hot = TRUE)) %>% add_model(linear_reg(mode = "regression", engine = "glmnet", penalty = 0.01*0.4, mixture = 1))
+res1 = wf2 %>% fit_resamples(cv1) %>% collect_metrics()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
